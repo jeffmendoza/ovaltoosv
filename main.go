@@ -59,7 +59,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "error opening input file: %v\n", err)
 			os.Exit(1)
 		}
-		defer reader.Close()
+		defer func() { _ = reader.Close() }()
 	} else {
 		fmt.Fprintln(os.Stderr, "Reading from stdin...")
 		reader = os.Stdin
@@ -126,7 +126,7 @@ func validateOSV(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("opening embedded schema: %w", err)
 	}
-	defer schemaData.Close()
+	defer func() { _ = schemaData.Close() }()
 
 	schema, err := jsonschema.UnmarshalJSON(schemaData)
 	if err != nil {
