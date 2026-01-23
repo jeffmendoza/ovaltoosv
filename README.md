@@ -1,6 +1,6 @@
 # OVAL to OSV Converter
 
-A tool for converting [OVAL (Open Vulnerability and Assessment Language)](https://github.com/OVAL-Community/OVAL) definitions to [OSV (Open Source Vulnerability)](https://osv.dev/docs/) format.
+A tool for converting [OVAL (Open Vulnerability and Assessment Language)](https://github.com/OVAL-Community/OVAL) definitions to [OSV (Open Source Vulnerability)](https://ossf.github.io/osv-schema/) format.
 
 ## Install
 
