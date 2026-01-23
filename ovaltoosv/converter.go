@@ -21,7 +21,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Converter handles OVAL to OSV conversion
+// Converter converts OVAL vulnerability definitions to OSV format.
 type Converter struct {
 	ovalData *oval.OvalDefinitions
 	vulnMap  map[string]*osvschema.Vulnerability // keyed by vulnerability ID
@@ -31,12 +31,12 @@ type Converter struct {
 // Public Methods
 // =============================================================================
 
-// NewConverter creates a new Converter
+// NewConverter returns a new Converter.
 func NewConverter() *Converter {
 	return &Converter{}
 }
 
-// ParseOVAL parses the OVAL input and stores it internally
+// ParseOVAL parses OVAL XML input and stores it internally for conversion.
 func (c *Converter) ParseOVAL(input string) error {
 	ovalData, err := oval.Parse(input)
 	if err != nil {
@@ -46,10 +46,10 @@ func (c *Converter) ParseOVAL(input string) error {
 	return nil
 }
 
-// ConvertToOSV converts the parsed OVAL to OSV format
+// ConvertToOSV converts the parsed OVAL data to OSV format.
 func (c *Converter) ConvertToOSV() error {
 	if c.ovalData == nil {
-		return fmt.Errorf("no OVAL data to convert; call ParseOVAL first")
+		return fmt.Errorf("no OVAL data to convert: call ParseOVAL first")
 	}
 
 	c.vulnMap = make(map[string]*osvschema.Vulnerability)
@@ -82,15 +82,15 @@ func (c *Converter) ConvertToOSV() error {
 	return nil
 }
 
-// GetVulnerabilities returns the map of vulnerability IDs to vulnerabilities
+// GetVulnerabilities returns a map of vulnerability IDs to their OSV representations.
 func (c *Converter) GetVulnerabilities() map[string]*osvschema.Vulnerability {
 	return c.vulnMap
 }
 
-// GetJSON returns a map of vulnerability IDs to their JSON representation
+// GetJSON returns a map of vulnerability IDs to their JSON byte representations.
 func (c *Converter) GetJSON() (map[string][]byte, error) {
 	if len(c.vulnMap) == 0 {
-		return nil, fmt.Errorf("no vulnerabilities to marshal; call ConvertToOSV first")
+		return nil, fmt.Errorf("no vulnerabilities to marshal: call ConvertToOSV first")
 	}
 
 	result := make(map[string][]byte)
@@ -112,15 +112,15 @@ func (c *Converter) GetJSON() (map[string][]byte, error) {
 // Private Methods - Definition Conversion
 // =============================================================================
 
-// versionInfo holds extracted version information from OVAL criteria
+// versionInfo holds version information extracted from OVAL criteria.
 type versionInfo struct {
-	FixedVersion string // The version that fixes the vulnerability
-	Operation    string // The comparison operation (e.g., "less than")
-	Arch         string // Architecture (e.g., "x86_64", "aarch64")
+	FixedVersion string // version that fixes the vulnerability
+	Operation    string // comparison operation (e.g., "less than")
+	Arch         string // architecture (e.g., "x86_64", "aarch64")
 	PurlType     string // Package URL type (e.g., "rpm", "deb") based on test type
 }
 
-// convertDefinition converts a single OVAL Definition to an OSV Vulnerability
+// convertDefinition converts a single OVAL Definition to an OSV Vulnerability.
 func (c *Converter) convertDefinition(def oval.Definition, modified time.Time) *osvschema.Vulnerability {
 	vuln := &osvschema.Vulnerability{
 		SchemaVersion: osvconstants.SchemaVersion,
@@ -159,8 +159,8 @@ func (c *Converter) convertDefinition(def oval.Definition, modified time.Time) *
 	return vuln
 }
 
-// mergeDefinition merges a new OVAL definition into an existing OSV vulnerability
-// This is used when the same CVE affects multiple packages
+// mergeDefinition merges a new OVAL definition into an existing OSV vulnerability.
+// This is used when the same CVE affects multiple packages.
 func (c *Converter) mergeDefinition(vuln *osvschema.Vulnerability, def oval.Definition) {
 	// Merge affected packages
 	newAffected := c.convertAffected(def)
@@ -219,8 +219,8 @@ func (c *Converter) mergeDefinition(vuln *osvschema.Vulnerability, def oval.Defi
 // Private Methods - ID and Reference Extraction
 // =============================================================================
 
-// extractOSVID determines the OSV ID from the OVAL definition
-// Prefers CVE ID if available, otherwise uses the OVAL definition ID
+// extractOSVID determines the OSV ID from an OVAL definition.
+// It prefers the CVE ID if available, otherwise uses the OVAL definition ID.
 func (c *Converter) extractOSVID(def oval.Definition) string {
 	// First, check if there's a CVE reference
 	for _, ref := range def.Metadata.Reference {
@@ -234,8 +234,8 @@ func (c *Converter) extractOSVID(def oval.Definition) string {
 	return def.ID
 }
 
-// extractAliases extracts alternative vulnerability IDs from references
-// excludeID is used to avoid duplicating the primary vulnerability ID
+// extractAliases extracts alternative vulnerability IDs from references.
+// The excludeID parameter prevents duplicating the primary vulnerability ID.
 func (c *Converter) extractAliases(refs []oval.Reference, excludeID string) []string {
 	var aliases []string
 	seen := make(map[string]bool)
@@ -252,7 +252,7 @@ func (c *Converter) extractAliases(refs []oval.Reference, excludeID string) []st
 	return aliases
 }
 
-// convertReferences converts OVAL references to OSV references
+// convertReferences converts OVAL references to OSV references.
 func (c *Converter) convertReferences(refs []oval.Reference) []*osvschema.Reference {
 	var osvRefs []*osvschema.Reference
 
@@ -271,7 +271,7 @@ func (c *Converter) convertReferences(refs []oval.Reference) []*osvschema.Refere
 	return osvRefs
 }
 
-// mapReferenceType maps OVAL reference source to OSV reference type
+// mapReferenceType maps an OVAL reference source to an OSV reference type.
 func (c *Converter) mapReferenceType(source string) osvschema.Reference_Type {
 	switch strings.ToUpper(source) {
 	case "CVE":
@@ -287,15 +287,13 @@ func (c *Converter) mapReferenceType(source string) osvschema.Reference_Type {
 	}
 }
 
-// convertSeverity converts vendor severity string to OSV severity
-// OSV schema requires CVSS vector strings (v2, v3, or v4) with a type field.
-// Simple text severities like "medium" or "high" are not valid in the OSV schema,
-// so we skip them entirely. In the future, if CVSS vectors are available in the
-// OVAL data, they can be mapped here.
+// convertSeverity converts a vendor severity string to OSV severity.
+// The OSV schema requires CVSS vector strings (v2, v3, or v4).
+// Simple text severities like "medium" are not valid, so they are skipped.
 func (c *Converter) convertSeverity(severity string) []*osvschema.Severity {
-	// For now, we don't output severity since OVAL only provides text labels
-	// (e.g., "Medium", "High") which are not valid OSV severity values.
-	// OSV requires CVSS vector strings like "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+	// OVAL only provides text labels (e.g., "Medium", "High") which are not
+	// valid OSV severity values. OSV requires CVSS vector strings like
+	// "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H".
 	return nil
 }
 
@@ -303,7 +301,7 @@ func (c *Converter) convertSeverity(severity string) []*osvschema.Severity {
 // Private Methods - Affected Package Conversion
 // =============================================================================
 
-// convertAffected converts OVAL affected information to OSV affected
+// convertAffected converts OVAL affected information to OSV affected entries.
 func (c *Converter) convertAffected(def oval.Definition) []*osvschema.Affected {
 	var affected []*osvschema.Affected
 
@@ -373,7 +371,7 @@ func (c *Converter) convertAffected(def oval.Definition) []*osvschema.Affected {
 	return affected
 }
 
-// createVersionRanges creates OSV version ranges from extracted version info
+// createVersionRanges creates OSV version ranges from extracted version info.
 func (c *Converter) createVersionRanges(info versionInfo) []*osvschema.Range {
 	if info.FixedVersion == "" {
 		return nil
@@ -400,7 +398,7 @@ func (c *Converter) createVersionRanges(info versionInfo) []*osvschema.Range {
 // Private Methods - Version Extraction
 // =============================================================================
 
-// extractVersionFromCriteria extracts version information from OVAL criteria
+// extractVersionFromCriteria extracts version information from OVAL criteria.
 // It first tries to resolve the test_ref to get the actual state with EVR,
 // falling back to parsing criterion comments if the state is not available.
 func (c *Converter) extractVersionFromCriteria(criteria *oval.Criteria) versionInfo {
@@ -426,8 +424,8 @@ func (c *Converter) extractVersionFromCriteria(criteria *oval.Criteria) versionI
 	return versionInfo{}
 }
 
-// extractVersionFromTestRef extracts version info by looking up the test and its state
-// This provides more accurate version info than parsing comments
+// extractVersionFromTestRef extracts version info by looking up the test and its state.
+// This provides more accurate version info than parsing comments.
 func (c *Converter) extractVersionFromTestRef(testRef string) versionInfo {
 	if c.ovalData == nil || testRef == "" {
 		return versionInfo{}
@@ -486,7 +484,7 @@ func (c *Converter) extractVersionFromTestRef(testRef string) versionInfo {
 // Private Methods - Ecosystem Mapping
 // =============================================================================
 
-// mapFamilyToEcosystem maps OVAL family to OSV ecosystem
+// mapFamilyToEcosystem maps an OVAL family to an OSV ecosystem.
 func (c *Converter) mapFamilyToEcosystem(family string, platforms []string) osvconstants.Ecosystem {
 	switch strings.ToLower(family) {
 	case "unix", "linux":
@@ -506,9 +504,9 @@ func (c *Converter) mapFamilyToEcosystem(family string, platforms []string) osvc
 	}
 }
 
-// mapPlatformToEcosystem maps OVAL platform to OSV ecosystem
-// Returns only ecosystems defined in the OSV schema specification.
-// For platforms without a specific ecosystem, returns EcosystemLinux as fallback.
+// mapPlatformToEcosystem maps an OVAL platform to an OSV ecosystem.
+// It returns only ecosystems defined in the OSV schema specification.
+// For platforms without a specific ecosystem, it returns EcosystemLinux as a fallback.
 func (c *Converter) mapPlatformToEcosystem(platform string) osvconstants.Ecosystem {
 	platformLower := strings.ToLower(platform)
 
@@ -561,7 +559,7 @@ func (c *Converter) mapPlatformToEcosystem(platform string) osvconstants.Ecosyst
 // Private Methods - Timestamp Parsing
 // =============================================================================
 
-// parseTimestamp parses an OVAL timestamp string to time.Time
+// parseTimestamp parses an OVAL timestamp string to time.Time.
 func (c *Converter) parseTimestamp(ts string) time.Time {
 	// OVAL timestamps are typically in format: 2026-01-22T13:11:40.643166655Z
 	layouts := []string{
@@ -585,9 +583,9 @@ func (c *Converter) parseTimestamp(ts string) time.Time {
 // Private Helper Functions (standalone)
 // =============================================================================
 
-// normalizeEVR normalizes an EVR string for OSV output
-// Input format: "epoch:version-release" (e.g., "0:2.4.9-1.azl3")
-// Output: stripped version suitable for package version comparison
+// normalizeEVR normalizes an EVR string for OSV output.
+// Input format: "epoch:version-release" (e.g., "0:2.4.9-1.azl3").
+// Output: stripped version suitable for package version comparison.
 func normalizeEVR(evr string) string {
 	// Remove epoch prefix if it's "0:" (common default)
 	evr = strings.TrimPrefix(evr, "0:")
@@ -597,8 +595,9 @@ func normalizeEVR(evr string) string {
 	return evr
 }
 
-// extractPackageFromTitle attempts to extract the package name from the definition title
-// e.g., "CVE-2026-21441 affecting package tensorflow for versions less than 2.16.1-10"
+// extractPackageFromTitle extracts the package name from a definition title.
+// For example, "CVE-2026-21441 affecting package tensorflow for versions less than 2.16.1-10"
+// returns "tensorflow".
 func extractPackageFromTitle(title string) string {
 	// Look for "package <name>" pattern
 	if idx := strings.Index(title, "package "); idx != -1 {
@@ -615,8 +614,8 @@ func extractPackageFromTitle(title string) string {
 	return ""
 }
 
-// mapPlatformToPurlNamespace maps OVAL platform to PURL namespace
-// The namespace is the vendor/distributor name in lowercase
+// mapPlatformToPurlNamespace maps an OVAL platform to a PURL namespace.
+// The namespace is the vendor/distributor name in lowercase.
 func mapPlatformToPurlNamespace(platform string) string {
 	platformLower := strings.ToLower(platform)
 
@@ -663,8 +662,8 @@ func mapPlatformToPurlNamespace(platform string) string {
 	}
 }
 
-// normalizePlatformToDistro converts a platform string to a distro qualifier value
-// e.g., "Azure Linux 3.0" -> "azurelinux-3.0", "Fedora 25" -> "fedora-25"
+// normalizePlatformToDistro converts a platform string to a distro qualifier value.
+// For example, "Azure Linux 3.0" becomes "azurelinux-3.0".
 func normalizePlatformToDistro(platform string) string {
 	// Convert to lowercase and replace spaces with hyphens
 	distro := strings.ToLower(platform)
@@ -672,8 +671,8 @@ func normalizePlatformToDistro(platform string) string {
 	return distro
 }
 
-// buildPurl constructs a Package URL
-// Format: pkg:type/namespace/name@version?arch=arch&distro=distro
+// buildPurl constructs a Package URL string.
+// Format: pkg:type/namespace/name@version?arch=arch&distro=distro.
 func buildPurl(purlType, namespace, name, version, arch, distro string) string {
 	qualifierMap := make(map[string]string)
 	if arch != "" {

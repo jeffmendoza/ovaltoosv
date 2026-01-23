@@ -4,21 +4,67 @@
 // SPDX-License-Identifier: MIT
 //
 
+// Package oval parses OVAL (Open Vulnerability and Assessment Language)
+// XML documents into Go structs.
+//
+// OVAL is an international standard for representing vulnerability
+// information and system configuration. This package supports parsing
+// OVAL definitions documents, including Linux-specific constructs like
+// RPM package tests and states.
+//
+// # Basic Usage
+//
+// Parse an OVAL document from a string:
+//
+//	ovalDoc, err := oval.Parse(xmlString)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+// Or parse from bytes:
+//
+//	ovalDoc, err := oval.ParseBytes(xmlData)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+// # Accessing Definitions
+//
+// Iterate over vulnerability definitions:
+//
+//	for _, def := range ovalDoc.Definitions.Definition {
+//	    if def.Class == "vulnerability" {
+//	        fmt.Printf("CVE: %s\n", def.Metadata.Reference[0].RefID)
+//	        fmt.Printf("Title: %s\n", def.Metadata.Title)
+//	    }
+//	}
+//
+// # Looking Up Tests and States
+//
+// Use helper methods to resolve references:
+//
+//	test := ovalDoc.GetRPMInfoTest("oval:com.example:tst:1")
+//	if test != nil {
+//	    state := ovalDoc.GetRPMInfoState(test.State[0].StateRef)
+//	    if state != nil && state.EVR != nil {
+//	        fmt.Printf("Version: %s\n", state.EVR.Value)
+//	    }
+//	}
 package oval
 
 import (
 	"encoding/xml"
 )
 
-// Namespaces used in OVAL documents
+// XML namespace constants for OVAL documents.
 const (
-	OvalCommonNS      = "http://oval.mitre.org/XMLSchema/oval-common-5"
-	OvalDefinitionsNS = "http://oval.mitre.org/XMLSchema/oval-definitions-5"
+	OvalCommonNS       = "http://oval.mitre.org/XMLSchema/oval-common-5"
+	OvalDefinitionsNS  = "http://oval.mitre.org/XMLSchema/oval-definitions-5"
 	LinuxDefinitionsNS = "http://oval.mitre.org/XMLSchema/oval-definitions-5#linux"
 )
 
-// OvalDefinitions represents the root OVAL definitions document
-// Based on oval-definitions-schema.xsd
+// OvalDefinitions is the root element of an OVAL definitions document.
+// It is based on oval-definitions-schema.xsd.
 type OvalDefinitions struct {
 	XMLName     xml.Name     `xml:"oval_definitions"`
 	Generator   Generator    `xml:"generator"`
@@ -29,8 +75,8 @@ type OvalDefinitions struct {
 	Variables   *Variables   `xml:"variables"`
 }
 
-// Generator contains metadata about who generated the OVAL document
-// Based on oval-common-schema.xsd GeneratorType
+// Generator contains metadata about the tool that generated the OVAL document.
+// It is based on oval-common-schema.xsd GeneratorType.
 type Generator struct {
 	ProductName    string          `xml:"product_name,omitempty"`
 	ProductVersion string          `xml:"product_version,omitempty"`
@@ -38,19 +84,19 @@ type Generator struct {
 	Timestamp      string          `xml:"timestamp"` // Format: yyyy-mm-ddThh:mm:ss
 }
 
-// SchemaVersion represents the OVAL schema version with optional platform
+// SchemaVersion specifies the OVAL schema version with an optional platform attribute.
 type SchemaVersion struct {
 	Value    string `xml:",chardata"`
 	Platform string `xml:"platform,attr,omitempty"`
 }
 
-// Definitions is a container for Definition elements
+// Definitions contains a collection of OVAL Definition elements.
 type Definitions struct {
 	Definition []Definition `xml:"definition"`
 }
 
-// Definition represents a single OVAL definition (vulnerability, patch, etc.)
-// Based on oval-definitions-schema.xsd DefinitionType
+// Definition represents a single OVAL definition such as vulnerability, patch, or inventory.
+// It is based on oval-definitions-schema.xsd DefinitionType.
 type Definition struct {
 	ID         string    `xml:"id,attr"`
 	Version    int       `xml:"version,attr"`
@@ -61,8 +107,8 @@ type Definition struct {
 	Criteria   *Criteria `xml:"criteria,omitempty"`
 }
 
-// Metadata contains descriptive information about the definition
-// Based on oval-definitions-schema.xsd MetadataType
+// Metadata contains descriptive information about a definition.
+// It is based on oval-definitions-schema.xsd MetadataType.
 type Metadata struct {
 	Title       string      `xml:"title"`
 	Affected    []Affected  `xml:"affected,omitempty"`
@@ -75,29 +121,29 @@ type Metadata struct {
 	Severity     string `xml:"severity,omitempty"`
 }
 
-// Affected describes the system(s) for which the definition has been written
-// Based on oval-definitions-schema.xsd AffectedType
+// Affected describes the systems for which a definition applies.
+// It is based on oval-definitions-schema.xsd AffectedType.
 type Affected struct {
 	Family   string   `xml:"family,attr"` // windows, unix, ios, macos, etc.
 	Platform []string `xml:"platform,omitempty"`
 	Product  []string `xml:"product,omitempty"`
 }
 
-// Reference links the OVAL Definition to an external reference (e.g., CVE)
-// Based on oval-definitions-schema.xsd ReferenceType
+// Reference links an OVAL Definition to an external source such as a CVE.
+// It is based on oval-definitions-schema.xsd ReferenceType.
 type Reference struct {
 	Source string `xml:"source,attr"`
 	RefID  string `xml:"ref_id,attr"`
 	RefURL string `xml:"ref_url,attr,omitempty"`
 }
 
-// Notes contains additional notes about a definition or test
+// Notes contains additional notes about a definition or test.
 type Notes struct {
 	Note []string `xml:"note"`
 }
 
-// Criteria describes a container for sub-criteria, criterion, or extend_definition
-// Based on oval-definitions-schema.xsd CriteriaType
+// Criteria is a container for sub-criteria, criterion, or extend_definition elements.
+// It is based on oval-definitions-schema.xsd CriteriaType.
 type Criteria struct {
 	Operator           string             `xml:"operator,attr,omitempty"` // AND, OR, ONE, XOR (default: AND)
 	Negate             bool               `xml:"negate,attr,omitempty"`
@@ -108,8 +154,8 @@ type Criteria struct {
 	ExtendDefinition   []ExtendDefinition `xml:"extend_definition,omitempty"`
 }
 
-// Criterion identifies a specific test to be included in the criteria
-// Based on oval-definitions-schema.xsd CriterionType
+// Criterion identifies a specific test to include in the criteria.
+// It is based on oval-definitions-schema.xsd CriterionType.
 type Criterion struct {
 	TestRef            string `xml:"test_ref,attr"`
 	Negate             bool   `xml:"negate,attr,omitempty"`
@@ -117,8 +163,8 @@ type Criterion struct {
 	ApplicabilityCheck bool   `xml:"applicability_check,attr,omitempty"`
 }
 
-// ExtendDefinition allows existing definitions to be extended
-// Based on oval-definitions-schema.xsd ExtendDefinitionType
+// ExtendDefinition references another definition to extend.
+// It is based on oval-definitions-schema.xsd ExtendDefinitionType.
 type ExtendDefinition struct {
 	DefinitionRef      string `xml:"definition_ref,attr"`
 	Negate             bool   `xml:"negate,attr,omitempty"`
@@ -126,14 +172,14 @@ type ExtendDefinition struct {
 	ApplicabilityCheck bool   `xml:"applicability_check,attr,omitempty"`
 }
 
-// Tests is a container for Test elements
+// Tests contains a collection of OVAL Test elements.
 type Tests struct {
 	RPMInfoTest []RPMInfoTest `xml:"http://oval.mitre.org/XMLSchema/oval-definitions-5#linux rpminfo_test"`
 	Test        []Test        `xml:",any"`
 }
 
-// Test represents an abstract OVAL test (extended by component schemas)
-// Based on oval-definitions-schema.xsd TestType
+// Test represents an abstract OVAL test extended by component schemas.
+// It is based on oval-definitions-schema.xsd TestType.
 type Test struct {
 	XMLName        xml.Name   `xml:""`
 	ID             string     `xml:"id,attr"`
@@ -147,8 +193,8 @@ type Test struct {
 	State          []StateRef `xml:"state,omitempty"`
 }
 
-// RPMInfoTest represents a Linux RPM info test
-// Based on linux-definitions-schema.xsd rpminfo_test
+// RPMInfoTest represents a Linux RPM package information test.
+// It is based on linux-definitions-schema.xsd rpminfo_test.
 type RPMInfoTest struct {
 	XMLName        xml.Name   `xml:"http://oval.mitre.org/XMLSchema/oval-definitions-5#linux rpminfo_test"`
 	ID             string     `xml:"id,attr"`
@@ -162,25 +208,25 @@ type RPMInfoTest struct {
 	State          []StateRef `xml:"http://oval.mitre.org/XMLSchema/oval-definitions-5#linux state,omitempty"`
 }
 
-// ObjectRef references an OVAL object
+// ObjectRef holds a reference to an OVAL object by ID.
 type ObjectRef struct {
 	ObjectRef string `xml:"object_ref,attr"`
 }
 
-// StateRef references an OVAL state
+// StateRef holds a reference to an OVAL state by ID.
 type StateRef struct {
 	StateRef string `xml:"state_ref,attr"`
 }
 
-// Objects is a container for Object elements
+// Objects contains a collection of OVAL Object elements.
 type Objects struct {
 	RPMInfoObject []RPMInfoObject `xml:"http://oval.mitre.org/XMLSchema/oval-definitions-5#linux rpminfo_object"`
 	// Generic fallback for other object types
 	Object []Object `xml:",any"`
 }
 
-// Object represents an abstract OVAL object (extended by component schemas)
-// Based on oval-definitions-schema.xsd ObjectType
+// Object represents an abstract OVAL object extended by component schemas.
+// It is based on oval-definitions-schema.xsd ObjectType.
 type Object struct {
 	XMLName    xml.Name `xml:""`
 	ID         string   `xml:"id,attr"`
@@ -189,8 +235,8 @@ type Object struct {
 	Deprecated bool     `xml:"deprecated,attr,omitempty"`
 }
 
-// RPMInfoObject represents a Linux RPM info object
-// Based on linux-definitions-schema.xsd rpminfo_object
+// RPMInfoObject represents a Linux RPM package information object.
+// It is based on linux-definitions-schema.xsd rpminfo_object.
 type RPMInfoObject struct {
 	XMLName    xml.Name `xml:"http://oval.mitre.org/XMLSchema/oval-definitions-5#linux rpminfo_object"`
 	ID         string   `xml:"id,attr"`
@@ -200,15 +246,15 @@ type RPMInfoObject struct {
 	Name       string   `xml:"http://oval.mitre.org/XMLSchema/oval-definitions-5#linux name"` // Package name to check
 }
 
-// States is a container for State elements
+// States contains a collection of OVAL State elements.
 type States struct {
 	RPMInfoState []RPMInfoState `xml:"http://oval.mitre.org/XMLSchema/oval-definitions-5#linux rpminfo_state"`
 	// Generic fallback for other state types
 	State []State `xml:",any"`
 }
 
-// State represents an abstract OVAL state (extended by component schemas)
-// Based on oval-definitions-schema.xsd StateType
+// State represents an abstract OVAL state extended by component schemas.
+// It is based on oval-definitions-schema.xsd StateType.
 type State struct {
 	XMLName    xml.Name `xml:""`
 	ID         string   `xml:"id,attr"`
@@ -218,8 +264,8 @@ type State struct {
 	Deprecated bool     `xml:"deprecated,attr,omitempty"`
 }
 
-// RPMInfoState represents a Linux RPM info state
-// Based on linux-definitions-schema.xsd rpminfo_state
+// RPMInfoState represents a Linux RPM package information state.
+// It is based on linux-definitions-schema.xsd rpminfo_state.
 type RPMInfoState struct {
 	XMLName    xml.Name `xml:"http://oval.mitre.org/XMLSchema/oval-definitions-5#linux rpminfo_state"`
 	ID         string   `xml:"id,attr"`
@@ -236,29 +282,29 @@ type RPMInfoState struct {
 	SigKeyID *EntityStateString `xml:"http://oval.mitre.org/XMLSchema/oval-definitions-5#linux signature_keyid,omitempty"`
 }
 
-// EntityStateString represents a string entity state with operation attribute
+// EntityStateString represents a string entity state with an operation attribute.
 type EntityStateString struct {
 	Value     string `xml:",chardata"`
 	Datatype  string `xml:"datatype,attr,omitempty"`
 	Operation string `xml:"operation,attr,omitempty"` // equals, not equal, pattern match, etc.
 }
 
-// EntityStateEVR represents an EVR (epoch:version-release) entity state
-// Based on oval-definitions-schema.xsd EntityStateEVRStringType
+// EntityStateEVR represents an EVR (epoch:version-release) entity state.
+// It is based on oval-definitions-schema.xsd EntityStateEVRStringType.
 type EntityStateEVR struct {
-	Value     string `xml:",chardata"`          // e.g., "0:2.16.1-10.azl3"
-	Datatype  string `xml:"datatype,attr,omitempty"` // typically "evr_string"
+	Value     string `xml:",chardata"`                // e.g., "0:2.16.1-10.azl3"
+	Datatype  string `xml:"datatype,attr,omitempty"`  // typically "evr_string"
 	Operation string `xml:"operation,attr,omitempty"` // e.g., "less than"
 }
 
-// Variables is a container for Variable elements
+// Variables contains a collection of OVAL Variable elements.
 type Variables struct {
-	// Variables can be constant_variable, external_variable, local_variable
-	// Using raw XML for now as these are complex
+	// Variables can be constant_variable, external_variable, local_variable.
+	// Using raw XML for now as these are complex.
 	Variable []Variable `xml:",any"`
 }
 
-// Variable represents an abstract OVAL variable
+// Variable represents an abstract OVAL variable.
 type Variable struct {
 	XMLName    xml.Name `xml:""`
 	ID         string   `xml:"id,attr"`
@@ -268,7 +314,7 @@ type Variable struct {
 	Deprecated bool     `xml:"deprecated,attr,omitempty"`
 }
 
-// Parse parses OVAL XML input and returns the OvalDefinitions struct
+// Parse parses OVAL XML from a string and returns the OvalDefinitions struct.
 func Parse(input string) (*OvalDefinitions, error) {
 	var oval OvalDefinitions
 	err := xml.Unmarshal([]byte(input), &oval)
@@ -278,7 +324,7 @@ func Parse(input string) (*OvalDefinitions, error) {
 	return &oval, nil
 }
 
-// ParseBytes parses OVAL XML from bytes and returns the OvalDefinitions struct
+// ParseBytes parses OVAL XML from bytes and returns the OvalDefinitions struct.
 func ParseBytes(input []byte) (*OvalDefinitions, error) {
 	var oval OvalDefinitions
 	err := xml.Unmarshal(input, &oval)
@@ -288,7 +334,7 @@ func ParseBytes(input []byte) (*OvalDefinitions, error) {
 	return &oval, nil
 }
 
-// GetRPMInfoState returns an RPMInfoState by ID, or nil if not found
+// GetRPMInfoState returns the RPMInfoState with the given ID, or nil if not found.
 func (o *OvalDefinitions) GetRPMInfoState(id string) *RPMInfoState {
 	if o.States == nil {
 		return nil
@@ -301,7 +347,7 @@ func (o *OvalDefinitions) GetRPMInfoState(id string) *RPMInfoState {
 	return nil
 }
 
-// GetRPMInfoObject returns an RPMInfoObject by ID, or nil if not found
+// GetRPMInfoObject returns the RPMInfoObject with the given ID, or nil if not found.
 func (o *OvalDefinitions) GetRPMInfoObject(id string) *RPMInfoObject {
 	if o.Objects == nil {
 		return nil
@@ -314,7 +360,7 @@ func (o *OvalDefinitions) GetRPMInfoObject(id string) *RPMInfoObject {
 	return nil
 }
 
-// GetRPMInfoTest returns an RPMInfoTest by ID, or nil if not found
+// GetRPMInfoTest returns the RPMInfoTest with the given ID, or nil if not found.
 func (o *OvalDefinitions) GetRPMInfoTest(id string) *RPMInfoTest {
 	if o.Tests == nil {
 		return nil
@@ -327,8 +373,8 @@ func (o *OvalDefinitions) GetRPMInfoTest(id string) *RPMInfoTest {
 	return nil
 }
 
-// GetTest returns a Test by ID, or nil if not found
-// This searches both the generic Test collection and the RPMInfoTest collection
+// GetTest returns the Test with the given ID, or nil if not found.
+// This searches both the generic Test collection and the RPMInfoTest collection.
 func (o *OvalDefinitions) GetTest(id string) *Test {
 	if o.Tests == nil {
 		return nil

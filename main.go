@@ -24,7 +24,7 @@ import (
 //go:embed osv-schema.json
 var schemaFS embed.FS
 
-// ValidationError represents a schema validation error
+// ValidationError indicates that JSON schema validation failed.
 type ValidationError struct {
 	Err error
 }
@@ -56,7 +56,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Reading from file: %s\n", *inputFile)
 		reader, err = os.Open(*inputFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error opening input file: %v\n", err)
+			fmt.Fprintf(os.Stderr, "error opening input file: %v\n", err)
 			os.Exit(1)
 		}
 		defer reader.Close()
@@ -67,7 +67,7 @@ func main() {
 
 	// Ensure output directory exists
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error creating output directory: %v\n", err)
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stderr, "Writing to directory: %s\n", outputDir)
@@ -78,7 +78,7 @@ func main() {
 		if errors.As(err, &valErr) {
 			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 		} else {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
 	}
