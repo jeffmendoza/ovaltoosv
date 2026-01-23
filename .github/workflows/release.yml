@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+          VERSION=${{ github.ref_name }}
+          
+          # Linux amd64
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/ovaltoosv-linux-amd64 .
+          
+          # Linux arm64
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/ovaltoosv-linux-arm64 .
+          
+          # macOS amd64
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/ovaltoosv-darwin-amd64 .
+          
+          # macOS arm64 (Apple Silicon)
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/ovaltoosv-darwin-arm64 .
+          
+          # Windows amd64
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/ovaltoosv-windows-amd64.exe .
+          
+          # Windows arm64
+          GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o dist/ovaltoosv-windows-arm64.exe .
+
+      - name: Generate SBOM
+        run: |
+          go install sigs.k8s.io/bom/cmd/bom@latest
+          bom generate -o dist/ovaltoosv-sbom.spdx .
+
+      - name: Generate NOTICE file
+        run: |
+          go install github.com/jeffmendoza/cdsbom/sbomnotice@latest
+          sbomnotice -out dist/NOTICE dist/ovaltoosv-sbom.spdx
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create ${{ github.ref_name }} --generate-notes dist/*
