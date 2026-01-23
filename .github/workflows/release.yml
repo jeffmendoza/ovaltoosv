@@ -49,12 +49,12 @@ jobs:
       - name: Generate SBOM
         run: |
           go install sigs.k8s.io/bom/cmd/bom@latest
-          bom generate -o dist/ovaltoosv-sbom.spdx .
+          bom generate --format json -o dist/ovaltoosv-spdx.json --name ovaltoosv --ignore '\.git' .
 
       - name: Generate NOTICE file
         run: |
           go install github.com/jeffmendoza/cdsbom/sbomnotice@latest
-          sbomnotice -out dist/NOTICE dist/ovaltoosv-sbom.spdx
+          sbomnotice -out dist/NOTICE dist/ovaltoosv-spdx.json
 
       - name: Create Release
         env:
