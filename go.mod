@@ -1,6 +1,6 @@
 module github.com/jeffmendoza/ovaltoosv
 
-go 1.25.6
+go 1.25.8
 
 require (
 	github.com/ossf/osv-schema/bindings/go v0.0.0-20260121045924-5b672aebc38f
